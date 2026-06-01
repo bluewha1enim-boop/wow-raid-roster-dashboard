@@ -1,0 +1,8 @@
+## Interface: 120005
+## Title: Raid Roster Calendar
+## Notes: Import raid roster strings into the in-game calendar.
+## Author: Codex
+## Version: 0.1.0
+## SavedVariables: RaidRosterCalendarDB
+
+RaidRosterCalendar.lua

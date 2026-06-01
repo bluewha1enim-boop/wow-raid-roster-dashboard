@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>공격대 구인 대시보드</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("raid-dashboard-theme") || "dark";
+    </script>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">World of Warcraft Raid Roster</p>
+          <h1>공격대 구인 대시보드</h1>
+        </div>
+        <div class="actions">
+          <button id="importButton" class="button" type="button">애드온 문자열 가져오기</button>
+          <button id="exportButton" class="button" type="button">애드온 문자열 복사</button>
+          <button id="themeToggle" class="icon-toggle" type="button" title="테마 변경"></button>
+          <button id="resetButton" class="button" type="button">샘플 복원</button>
+        </div>
+      </header>
+
+      <section id="authPanel" class="auth-panel" aria-label="로그인">
+        <form id="authForm" class="auth-form">
+          <input id="authUsername" type="text" placeholder="아이디" autocomplete="username" required>
+          <input id="authPassword" type="password" placeholder="비밀번호" autocomplete="current-password" required>
+          <button id="loginButton" class="button primary" type="submit">로그인</button>
+          <button id="registerButton" class="button" type="button">가입</button>
+        </form>
+        <div id="sessionPanel" class="session-panel" hidden>
+          <strong id="userLabel"></strong>
+          <button id="logoutButton" class="button" type="button">로그아웃</button>
+        </div>
+        <p id="authStatus" class="auth-status"></p>
+      </section>
+
+      <section id="schedulePanel" class="schedule-panel" aria-label="일정 관리" hidden>
+        <div class="field schedule-select-field">
+          <label for="scheduleSelect">일정</label>
+          <select id="scheduleSelect"></select>
+        </div>
+        <div class="field schedule-name-field">
+          <label for="scheduleNameInput">이름</label>
+          <input id="scheduleNameInput" type="text" maxlength="40" placeholder="일정 이름">
+        </div>
+        <button id="saveScheduleNameButton" class="button" type="button">이름 저장</button>
+        <button id="newScheduleButton" class="button" type="button">새 일정</button>
+        <button id="deleteScheduleButton" class="button danger" type="button">삭제</button>
+        <span id="saveStatus" class="save-status">로컬 저장</span>
+      </section>
+
+      <section class="summary-grid" aria-label="공격대 요약">
+        <article class="metric">
+          <span>총 인원</span>
+          <strong id="totalCount">0</strong>
+        </article>
+        <article class="metric">
+          <span>탱커</span>
+          <strong id="tankCount">0</strong>
+        </article>
+        <article class="metric">
+          <span>힐러</span>
+          <strong id="healerCount">0</strong>
+        </article>
+        <article class="metric">
+          <span>딜러</span>
+          <strong id="dpsCount">0</strong>
+        </article>
+        <article class="metric">
+          <span>필수 직업</span>
+          <strong id="synergyCount">0/0</strong>
+        </article>
+      </section>
+
+      <section class="applicant-panel" aria-label="지원자 추가">
+        <div class="panel-heading">
+          <div>
+            <h2>지원자 추가</h2>
+            <p>닉네임만 적으면 아즈샤라로 추가됩니다. 다른 서버는 닉네임-서버 형식으로 적으면 됩니다.</p>
+          </div>
+        </div>
+        <form id="addForm" class="applicant-form compact">
+          <input id="nameInput" type="text" placeholder="닉네임 또는 닉네임-서버" required>
+          <button class="button primary" type="submit">명단 추가</button>
+        </form>
+        <p id="lookupStatus" class="lookup-status"></p>
+      </section>
+
+      <section class="toolbar" aria-label="필터">
+        <div class="field">
+          <label for="roleFilter">역할</label>
+          <select id="roleFilter">
+            <option value="all">전체</option>
+            <option value="탱커">탱커</option>
+            <option value="힐러">힐러</option>
+            <option value="딜러">딜러</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <div class="panel roster-panel">
+          <div class="panel-heading">
+            <h2>공격대 명단</h2>
+            <span id="visibleCount">0명 표시</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>캐릭터</th>
+                  <th>직업</th>
+                  <th>전문화</th>
+                  <th>역할</th>
+                  <th>WCL</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rosterBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside class="panel checks-panel">
+          <div class="panel-heading">
+            <h2>자동 점검</h2>
+            <span>20인 기준</span>
+          </div>
+          <div id="balanceChecks" class="checks"></div>
+          <div class="composition">
+            <h3>직업 구성</h3>
+            <div id="classBars" class="class-bars"></div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <template id="rowTemplate">
+      <tr>
+        <td>
+          <strong class="char-name"></strong>
+          <span class="realm"></span>
+        </td>
+        <td><span class="class-badge"></span></td>
+        <td><div class="spec-icons"></div></td>
+        <td>
+          <div class="role-buttons" aria-label="역할 선택">
+            <button class="role-button" type="button" data-role="탱커" title="탱커"></button>
+            <button class="role-button" type="button" data-role="힐러" title="힐러"></button>
+            <button class="role-button" type="button" data-role="딜러" title="딜러"></button>
+          </div>
+        </td>
+        <td>
+          <div class="row-actions">
+            <button class="small-button refresh-row-button" type="button">갱신</button>
+            <button class="small-button wcl-row-button" type="button">열기</button>
+          </div>
+        </td>
+        <td><button class="icon-button remove-button" type="button" title="삭제">×</button></td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
