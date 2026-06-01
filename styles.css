@@ -232,7 +232,7 @@ h3 {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(112px, 1fr));
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -305,7 +305,7 @@ h3 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 170px 160px;
+  grid-template-columns: 170px;
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -692,34 +692,15 @@ body.is-row-dragging {
 }
 
 .progress-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 58px;
-  min-height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-soft);
-  color: var(--muted);
-  padding: 0 10px;
-  font-size: 12px;
+  display: inline-block;
+  min-width: 52px;
+  color: var(--text);
+  font-size: 13px;
   font-weight: 800;
 }
 
-.progress-pill.mythic {
-  border-color: rgba(255, 122, 112, 0.58);
-  background: rgba(180, 35, 24, 0.12);
-  color: var(--bad);
-}
-
-.progress-pill.heroic {
-  border-color: rgba(16, 163, 127, 0.58);
-  background: rgba(16, 163, 127, 0.12);
-  color: var(--primary-dark);
-}
-
 .progress-pill.empty {
-  opacity: 0.62;
+  color: var(--muted);
 }
 
 .number-input {

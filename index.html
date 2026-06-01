@@ -21,7 +21,6 @@
           <button id="importButton" class="button" type="button">애드온 문자열 가져오기</button>
           <button id="exportButton" class="button" type="button">애드온 문자열 복사</button>
           <button id="themeToggle" class="icon-toggle" type="button" title="테마 변경"></button>
-          <button id="resetButton" class="button" type="button">샘플 복원</button>
         </div>
       </header>
 
@@ -75,10 +74,6 @@
           <span>스왑</span>
           <strong id="swapCount">0</strong>
         </article>
-        <article class="metric">
-          <span>필수 직업</span>
-          <strong id="synergyCount">0/0</strong>
-        </article>
       </section>
 
       <section class="applicant-panel" aria-label="지원자 추가">
@@ -95,12 +90,12 @@
         <p id="lookupStatus" class="lookup-status"></p>
       </section>
 
-      <section class="toolbar" aria-label="필터">
+      <section class="toolbar" aria-label="정렬">
         <div class="sort-menu">
           <label for="sortMenuButton">정렬</label>
           <button id="sortMenuButton" class="sort-button" type="button" aria-expanded="false">
             <span class="sort-icon">↕</span>
-            <span id="sortLabel">탱 → 힐 → 스왑 → 딜</span>
+            <span id="sortLabel">포지션 정렬</span>
           </button>
           <div id="sortMenu" class="sort-options" hidden>
             <strong>정렬 옵션</strong>
@@ -108,16 +103,6 @@
             <button type="button" data-sort="class">클래스 정렬</button>
             <button type="button" data-sort="name-asc">이름순 정렬</button>
           </div>
-        </div>
-        <div class="field">
-          <label for="roleFilter">역할</label>
-          <select id="roleFilter">
-            <option value="all">전체</option>
-            <option value="탱커">탱커</option>
-            <option value="힐러">힐러</option>
-            <option value="딜러">딜러</option>
-            <option value="스왑">스왑</option>
-          </select>
         </div>
       </section>
 
@@ -146,10 +131,6 @@
         </div>
 
         <aside class="panel checks-panel">
-          <div class="panel-heading">
-            <h2>자동 점검</h2>
-            <span>20인 기준</span>
-          </div>
           <div id="balanceChecks" class="checks"></div>
           <div class="composition">
             <h3>직업 구성</h3>

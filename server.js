@@ -444,12 +444,12 @@ async function queryWclProgress({ name, serverSlug, serverRegion }) {
 
   const mythicKills = countRankedEncounters(character.mythic);
   if (mythicKills > 0) {
-    return `${Math.min(mythicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT}M`;
+    return `${Math.min(mythicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT} M`;
   }
 
   const heroicKills = countRankedEncounters(character.heroic);
   if (heroicKills > 0) {
-    return `${Math.min(heroicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT}H`;
+    return `${Math.min(heroicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT} H`;
   }
 
   return "";

@@ -129,11 +129,9 @@ const sampleRoster = [
 
 const rosterBody = document.querySelector("#rosterBody");
 const rowTemplate = document.querySelector("#rowTemplate");
-const roleFilter = document.querySelector("#roleFilter");
 const addForm = document.querySelector("#addForm");
 const importButton = document.querySelector("#importButton");
 const exportButton = document.querySelector("#exportButton");
-const resetButton = document.querySelector("#resetButton");
 const themeToggle = document.querySelector("#themeToggle");
 const lookupStatus = document.querySelector("#lookupStatus");
 const sortMenuButton = document.querySelector("#sortMenuButton");
@@ -567,12 +565,7 @@ async function fetchWclCharacter(character) {
 }
 
 function getFilteredRoster() {
-  return [...roster]
-    .sort(compareManualOrder)
-    .filter((character) => {
-      const matchesRole = roleFilter.value === "all" || character.role === roleFilter.value;
-      return matchesRole;
-    });
+  return [...roster].sort(compareManualOrder);
 }
 
 function renderSpecIcons(container, character) {
@@ -651,11 +644,17 @@ function closeRolePopovers(except) {
 
 function renderProgress(row, character) {
   const progressPill = row.querySelector(".progress-pill");
-  const progress = character.progress || "";
+  const progress = formatProgressText(character.progress || "");
   progressPill.textContent = progress || "미확인";
   progressPill.classList.toggle("empty", !progress);
-  progressPill.classList.toggle("mythic", /M$/.test(progress));
-  progressPill.classList.toggle("heroic", /H$/.test(progress));
+}
+
+function formatProgressText(progress) {
+  return String(progress)
+    .trim()
+    .replace(/^(\d+\s*\/\s*\d+)\s*([MH])$/i, (_, count, difficulty) =>
+      `${count.replace(/\s+/g, "")} ${difficulty.toUpperCase()}`
+    );
 }
 
 function resolveIconSrc(icon, folder) {
@@ -922,17 +921,17 @@ function getNextOrder() {
 
 const sortOptions = {
   "tank-healer-dps": {
-    label: "탱 → 힐 → 스왑 → 딜",
+    label: "포지션 정렬",
     compare: makeRoleComparator(["탱커", "힐러", "스왑", "딜러"]),
   },
   class: {
-    label: "직업",
+    label: "클래스 정렬",
     compare: (a, b) =>
       classSortValue(a) - classSortValue(b) ||
       compareRole(["탱커", "힐러", "스왑", "딜러"], a, b) ||
       compareName(a, b),
   },
-  "name-asc": { label: "A-Z", compare: compareName },
+  "name-asc": { label: "이름순 정렬", compare: compareName },
   "name-desc": { label: "Z-A", compare: (a, b) => compareName(b, a) },
 };
 
@@ -983,15 +982,12 @@ function closeSortMenu() {
 function renderSummary() {
   const countByRole = roleName =>
     roster.filter((character) => character.role === roleName).length;
-  const representedClasses = countRepresentedClasses();
 
   document.querySelector("#totalCount").textContent = roster.length;
   document.querySelector("#tankCount").textContent = countByRole("탱커");
   document.querySelector("#healerCount").textContent = countByRole("힐러");
   document.querySelector("#dpsCount").textContent = countByRole("딜러");
   document.querySelector("#swapCount").textContent = countByRole("스왑");
-  document.querySelector("#synergyCount").textContent =
-    `${representedClasses}/${classes.length}`;
 }
 
 function makeCheck(label, level, value) {
@@ -1008,26 +1004,15 @@ function renderChecks() {
   const healers = roster.filter((character) => character.role === "힐러").length;
   const dps = roster.filter((character) => character.role === "딜러").length;
   const swaps = roster.filter((character) => character.role === "스왑").length;
-  const classCounts = countBy("wowClass");
-  const overStacked = Object.entries(classCounts).filter(
-    ([className, count]) => className !== pendingClass && count >= 4
-  );
+  const healerCoverage = healers + swaps;
+  const dpsCoverage = dps + swaps;
 
   checks.append(
     makeCheck("탱커", tanks === 2 ? "good" : "bad", `${tanks}/2`),
-    makeCheck("힐러", healers + swaps >= 4 && healers + swaps <= 5 ? "good" : "warn", swaps ? `${healers}+${swaps}/4~5` : `${healers}/4~5`),
-    makeCheck("딜러", dps + swaps >= 13 && dps + swaps <= 14 ? "good" : "warn", swaps ? `${dps}+${swaps}/13~14` : `${dps}/13~14`),
-    makeCheck(
-      "직업 쏠림",
-      overStacked.length ? "warn" : "good",
-      overStacked.length ? overStacked.map(([name]) => name).join(", ") : "양호"
-    )
+    makeCheck("힐러", healerCoverage === 4 ? "good" : "warn", `${healerCoverage}/4`),
+    makeCheck("딜러", dpsCoverage === 14 ? "good" : "warn", `${dpsCoverage}/14`),
+    makeCheck("스왑", swaps === 1 ? "good" : "warn", `${swaps}/1`)
   );
-}
-
-function countRepresentedClasses() {
-  const classCounts = countBy("wowClass");
-  return classes.filter((wowClass) => classCounts[wowClass.name]).length;
 }
 
 function countBy(field) {
@@ -1257,7 +1242,6 @@ scheduleNameInput.addEventListener("keydown", (event) => {
 
 exportButton.addEventListener("click", copyAddonImportString);
 importButton.addEventListener("click", importAddonString);
-roleFilter.addEventListener("change", renderRoster);
 
 sortMenuButton.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -1320,15 +1304,6 @@ addForm.addEventListener("submit", async (event) => {
   saveRoster();
   render();
   submitButton.disabled = false;
-});
-
-resetButton.addEventListener("click", () => {
-  roster = cloneRoster(sampleRoster);
-  if (!currentUser) {
-    localStorage.removeItem(storageKey);
-  }
-  saveRoster();
-  render();
 });
 
 function inferRoleFromSpec(spec) {
