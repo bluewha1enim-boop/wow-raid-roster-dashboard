@@ -11,10 +11,11 @@ const WCL_TOKEN_URL = "https://www.warcraftlogs.com/oauth/token";
 const WCL_GRAPHQL_URL = "https://www.warcraftlogs.com/api/v2/client";
 const SESSION_COOKIE = "rrd_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const CURRENT_RAID_BOSS_COUNT = Number(process.env.WCL_CURRENT_RAID_BOSSES || 9);
 
 loadEnvFile();
 
+const CURRENT_RAID_BOSS_COUNT = Number(process.env.WCL_CURRENT_RAID_BOSSES || 9);
+const CURRENT_RAID_ZONE_ID = Number(process.env.WCL_CURRENT_RAID_ZONE_ID || 0) || null;
 const storage = createStorage();
 
 const classIdToName = {
@@ -420,11 +421,11 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
 
 async function queryWclProgress({ name, serverSlug, serverRegion }) {
   const query = `
-    query CharacterProgress($name: String!, $serverSlug: String!, $serverRegion: String!) {
+    query CharacterProgress($name: String!, $serverSlug: String!, $serverRegion: String!, $zoneID: Int) {
       characterData {
         character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
-          mythic: zoneRankings(difficulty: 5)
-          heroic: zoneRankings(difficulty: 4)
+          mythic: zoneRankings(difficulty: 5, zoneID: $zoneID)
+          heroic: zoneRankings(difficulty: 4, zoneID: $zoneID)
         }
       }
     }
@@ -434,6 +435,7 @@ async function queryWclProgress({ name, serverSlug, serverRegion }) {
     name,
     serverSlug,
     serverRegion,
+    zoneID: CURRENT_RAID_ZONE_ID,
   });
   const character = data?.characterData?.character;
   if (!character) {
@@ -482,16 +484,7 @@ function collectRankedEncounters(value, encounters) {
 }
 
 function isRankingEntry(value) {
-  return Boolean(
-    getEncounterKey(value) &&
-      (
-        value.rankPercent !== undefined ||
-        value.percentile !== undefined ||
-        value.bestAmount !== undefined ||
-        value.total !== undefined ||
-        value.rank !== undefined
-      )
-  );
+  return Boolean(getEncounterKey(value) && hasPositiveRankingSignal(value));
 }
 
 function getEncounterKey(value) {
@@ -515,6 +508,46 @@ function parseMaybeJson(value) {
   } catch (error) {
     return null;
   }
+}
+
+function hasPositiveRankingSignal(value) {
+  const numericFields = [
+    "rankPercent",
+    "percentile",
+    "bestAmount",
+    "total",
+    "rank",
+    "totalKills",
+    "kills",
+    "amount",
+    "points",
+  ];
+
+  if (numericFields.some((field) => toPositiveNumber(value[field]) > 0)) {
+    return true;
+  }
+
+  if (value.bestPerformance && hasPositiveRankingSignal(value.bestPerformance)) {
+    return true;
+  }
+
+  if (Array.isArray(value.ranks) && value.ranks.some(hasPositiveRankingSignal)) {
+    return true;
+  }
+
+  if (Array.isArray(value.kills) && value.kills.length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function toPositiveNumber(value) {
+  if (value === null || value === undefined || value === false) {
+    return 0;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
 async function wclGraphql(query, variables) {

@@ -208,8 +208,8 @@ function normalizeRosterOrder(entries) {
     .map((character, index) => ({
       ...character,
       order: Number.isFinite(character.order) ? character.order : index,
-      healerDpsSwap: Boolean(character.healerDpsSwap),
     }))
+    .map(normalizeCharacterState)
     .sort(compareManualOrder)
     .map((character, index) => ({ ...character, order: index }));
 }
@@ -601,7 +601,7 @@ function renderSpecIcons(container, character) {
     button.addEventListener("click", () => {
       updateCharacter(character.id, {
         spec: spec.name,
-        role: inferRoleFromSpec(spec.name),
+        role: inferRoleAfterSpecChange(character, spec.name),
       });
     });
     container.append(button);
@@ -614,6 +614,7 @@ function renderRoleMenu(row, character) {
   roleButton.innerHTML = roleIconSvg(character.role);
   roleButton.dataset.role = character.role;
   roleButton.title = `${character.role} 선택`;
+  popover.innerHTML = "";
 
   roleButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -623,14 +624,17 @@ function renderRoleMenu(row, character) {
     roleButton.setAttribute("aria-expanded", String(!isOpen));
   });
 
-  popover.querySelectorAll("[data-role]").forEach((button) => {
-    const role = button.dataset.role;
+  getAvailableRoles(character).forEach((role) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.role = role;
     button.innerHTML = `${roleIconSvg(role)}<span>${role}</span>`;
     button.classList.toggle("active", role === character.role);
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       updateCharacter(character.id, { role });
     });
+    popover.append(button);
   });
 }
 
@@ -692,16 +696,6 @@ function renderRoster() {
     specCell.title = hasSpec ? `${character.spec} 전문화 선택됨` : "전문화 선택 필요";
     renderSpecIcons(specIcons, character);
 
-    const swapToggle = row.querySelector(".swap-icon");
-    const showSwapToggle = canShowHealerDpsSwap(character);
-    swapToggle.hidden = !showSwapToggle;
-    swapToggle.classList.toggle("active", Boolean(character.healerDpsSwap));
-    swapToggle.setAttribute("aria-pressed", String(Boolean(character.healerDpsSwap)));
-    swapToggle.innerHTML = swapSvg();
-    swapToggle.addEventListener("click", () => {
-      updateCharacter(character.id, { healerDpsSwap: !character.healerDpsSwap });
-    });
-
     row.querySelector(".wcl-row-button").addEventListener("click", () => {
       openWcl(character);
     });
@@ -715,7 +709,7 @@ function renderRoster() {
           realm: wclCharacter.realm || character.realm,
           wowClass: wclCharacter.wowClass || character.wowClass,
           spec: wclCharacter.spec || character.spec,
-          role: wclCharacter.role || inferRoleFromSpec(wclCharacter.spec) || character.role,
+          role: resolveRoleAfterWcl(character, wclCharacter),
           progress: wclCharacter.progress || character.progress,
         });
         setLookupStatus(`${character.name} 정보를 갱신했습니다.`, "good");
@@ -743,10 +737,21 @@ function updateCharacter(id, patch) {
 }
 
 function normalizeCharacterState(character) {
-  if (!canShowHealerDpsSwap(character)) {
-    return { ...character, healerDpsSwap: false };
+  const migratedRole = character.healerDpsSwap && canRoleSwap(character) ? "스왑" : character.role;
+  const next = {
+    ...character,
+    role: migratedRole || inferRoleFromSpec(character.spec) || "딜러",
+    healerDpsSwap: false,
+  };
+
+  if (next.role === "스왑" && !canRoleSwap(next)) {
+    return {
+      ...next,
+      role: inferRoleFromSpec(next.spec) || "딜러",
+    };
   }
-  return character;
+
+  return next;
 }
 
 function moveCharacterInVisibleOrder(draggedId, targetId, placeAfter) {
@@ -917,14 +922,14 @@ function getNextOrder() {
 
 const sortOptions = {
   "tank-healer-dps": {
-    label: "탱 → 힐 → 딜",
-    compare: makeRoleComparator(["탱커", "힐러", "딜러"]),
+    label: "탱 → 힐 → 스왑 → 딜",
+    compare: makeRoleComparator(["탱커", "힐러", "스왑", "딜러"]),
   },
   class: {
     label: "직업",
     compare: (a, b) =>
       classSortValue(a) - classSortValue(b) ||
-      compareRole(["탱커", "힐러", "딜러"], a, b) ||
+      compareRole(["탱커", "힐러", "스왑", "딜러"], a, b) ||
       compareName(a, b),
   },
   "name-asc": { label: "A-Z", compare: compareName },
@@ -984,6 +989,7 @@ function renderSummary() {
   document.querySelector("#tankCount").textContent = countByRole("탱커");
   document.querySelector("#healerCount").textContent = countByRole("힐러");
   document.querySelector("#dpsCount").textContent = countByRole("딜러");
+  document.querySelector("#swapCount").textContent = countByRole("스왑");
   document.querySelector("#synergyCount").textContent =
     `${representedClasses}/${classes.length}`;
 }
@@ -1001,6 +1007,7 @@ function renderChecks() {
   const tanks = roster.filter((character) => character.role === "탱커").length;
   const healers = roster.filter((character) => character.role === "힐러").length;
   const dps = roster.filter((character) => character.role === "딜러").length;
+  const swaps = roster.filter((character) => character.role === "스왑").length;
   const classCounts = countBy("wowClass");
   const overStacked = Object.entries(classCounts).filter(
     ([className, count]) => className !== pendingClass && count >= 4
@@ -1008,8 +1015,8 @@ function renderChecks() {
 
   checks.append(
     makeCheck("탱커", tanks === 2 ? "good" : "bad", `${tanks}/2`),
-    makeCheck("힐러", healers >= 4 && healers <= 5 ? "good" : "warn", `${healers}/4~5`),
-    makeCheck("딜러", dps >= 13 && dps <= 14 ? "good" : "warn", `${dps}/13~14`),
+    makeCheck("힐러", healers + swaps >= 4 && healers + swaps <= 5 ? "good" : "warn", swaps ? `${healers}+${swaps}/4~5` : `${healers}/4~5`),
+    makeCheck("딜러", dps + swaps >= 13 && dps + swaps <= 14 ? "good" : "warn", swaps ? `${dps}+${swaps}/13~14` : `${dps}/13~14`),
     makeCheck(
       "직업 쏠림",
       overStacked.length ? "warn" : "good",
@@ -1199,6 +1206,9 @@ function roleIconSvg(role) {
   if (role === "힐러") {
     return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6V4z"/></svg>`;
   }
+  if (role === "스왑") {
+    return swapSvg();
+  }
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4l5.5 5.5-2.4 2.4-1.1-1.1-7.7 7.7H5.5v-3.3l7.7-7.7-1.1-1.1L14.5 4z"/><path d="M9.5 4L4 9.5l2.4 2.4 1.1-1.1 7.7 7.7h3.3v-3.3l-7.7-7.7 1.1-1.1L9.5 4z"/></svg>`;
 }
 
@@ -1331,11 +1341,36 @@ function inferRoleFromSpec(spec) {
   return spec ? "딜러" : "";
 }
 
-function canShowHealerDpsSwap(character) {
-  if (!["힐러", "딜러"].includes(character.role)) {
-    return false;
+function getAvailableRoles(character) {
+  const roles = ["탱커", "힐러", "딜러"];
+  if (canRoleSwap(character)) {
+    roles.push("스왑");
+  }
+  return roles;
+}
+
+function inferRoleAfterSpecChange(character, specName) {
+  if (character.role === "스왑" && canRoleSwap({ ...character, spec: specName }) && !tankSpecs.has(specName)) {
+    return "스왑";
+  }
+  return inferRoleFromSpec(specName);
+}
+
+function resolveRoleAfterWcl(currentCharacter, wclCharacter) {
+  const nextCharacter = {
+    ...currentCharacter,
+    wowClass: wclCharacter.wowClass || currentCharacter.wowClass,
+    spec: wclCharacter.spec || currentCharacter.spec,
+  };
+
+  if (currentCharacter.role === "스왑" && canRoleSwap(nextCharacter)) {
+    return "스왑";
   }
 
+  return wclCharacter.role || inferRoleFromSpec(wclCharacter.spec) || currentCharacter.role;
+}
+
+function canRoleSwap(character) {
   const specs = specsByClass[character.wowClass] || [];
   const hasHealerSpec = specs.some((spec) => healerSpecs.has(spec.name));
   const hasDpsSpec = specs.some(

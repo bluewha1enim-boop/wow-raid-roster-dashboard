@@ -232,7 +232,7 @@ h3 {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  grid-template-columns: repeat(6, minmax(112px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -483,8 +483,7 @@ td strong {
   position: relative;
 }
 
-.role-icon-button,
-.swap-icon {
+.role-icon-button {
   display: inline-grid;
   place-items: center;
   width: 31px;
@@ -498,7 +497,6 @@ td strong {
 }
 
 .role-icon-button svg,
-.swap-icon svg,
 .role-popover svg {
   width: 17px;
   height: 17px;
@@ -521,9 +519,12 @@ td strong {
   color: var(--warn);
 }
 
+.role-icon-button[data-role="스왑"] {
+  color: var(--primary);
+}
+
 .role-icon-button:hover,
-.role-icon-button[aria-expanded="true"],
-.swap-icon:hover {
+.role-icon-button[aria-expanded="true"] {
   border-color: var(--primary);
 }
 
@@ -560,19 +561,6 @@ td strong {
 .role-popover button.active {
   background: var(--button-hover);
   color: var(--primary-dark);
-}
-
-.swap-icon {
-  width: 27px;
-  height: 27px;
-  opacity: 0.72;
-}
-
-.swap-icon.active {
-  border-color: rgba(16, 163, 127, 0.78);
-  background: rgba(16, 163, 127, 0.16);
-  color: var(--primary-dark);
-  opacity: 1;
 }
 
 .class-badge,

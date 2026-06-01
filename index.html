@@ -72,6 +72,10 @@
           <strong id="dpsCount">0</strong>
         </article>
         <article class="metric">
+          <span>스왑</span>
+          <strong id="swapCount">0</strong>
+        </article>
+        <article class="metric">
           <span>필수 직업</span>
           <strong id="synergyCount">0/0</strong>
         </article>
@@ -96,7 +100,7 @@
           <label for="sortMenuButton">정렬</label>
           <button id="sortMenuButton" class="sort-button" type="button" aria-expanded="false">
             <span class="sort-icon">↕</span>
-            <span id="sortLabel">탱 → 힐 → 딜</span>
+            <span id="sortLabel">탱 → 힐 → 스왑 → 딜</span>
           </button>
           <div id="sortMenu" class="sort-options" hidden>
             <strong>정렬 옵션</strong>
@@ -112,6 +116,7 @@
             <option value="탱커">탱커</option>
             <option value="힐러">힐러</option>
             <option value="딜러">딜러</option>
+            <option value="스왑">스왑</option>
           </select>
         </div>
       </section>
@@ -163,14 +168,9 @@
           <div class="char-line">
             <div class="role-menu">
               <button class="role-icon-button" type="button" aria-expanded="false" title="역할 선택"></button>
-              <div class="role-popover" hidden>
-                <button type="button" data-role="탱커"></button>
-                <button type="button" data-role="힐러"></button>
-                <button type="button" data-role="딜러"></button>
-              </div>
+              <div class="role-popover" hidden></div>
             </div>
             <strong class="char-name"></strong>
-            <button class="swap-icon" type="button" title="힐/딜 스왑 가능"></button>
           </div>
           <span class="realm"></span>
         </td>
