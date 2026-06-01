@@ -11,6 +11,7 @@ const WCL_TOKEN_URL = "https://www.warcraftlogs.com/oauth/token";
 const WCL_GRAPHQL_URL = "https://www.warcraftlogs.com/api/v2/client";
 const SESSION_COOKIE = "rrd_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const CURRENT_RAID_BOSS_COUNT = Number(process.env.WCL_CURRENT_RAID_BOSSES || 9);
 
 loadEnvFile();
 
@@ -401,6 +402,7 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
 
   const wowClass = classIdToName[character.classID] || "WCL 연동 대기";
   const spec = getSpecFromGameData(character.gameData);
+  const progress = await queryWclProgress({ name, realm, serverSlug, serverRegion }).catch(() => "");
 
   return {
     id: character.id,
@@ -410,9 +412,109 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
     wowClass,
     spec,
     role: spec ? inferRole(spec) : undefined,
+    progress,
     level: character.level,
     wclUrl: buildWclUrl({ name: character.name || name, realm }),
   };
+}
+
+async function queryWclProgress({ name, serverSlug, serverRegion }) {
+  const query = `
+    query CharacterProgress($name: String!, $serverSlug: String!, $serverRegion: String!) {
+      characterData {
+        character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
+          mythic: zoneRankings(difficulty: 5)
+          heroic: zoneRankings(difficulty: 4)
+        }
+      }
+    }
+  `;
+
+  const data = await wclGraphql(query, {
+    name,
+    serverSlug,
+    serverRegion,
+  });
+  const character = data?.characterData?.character;
+  if (!character) {
+    return "";
+  }
+
+  const mythicKills = countRankedEncounters(character.mythic);
+  if (mythicKills > 0) {
+    return `${Math.min(mythicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT}M`;
+  }
+
+  const heroicKills = countRankedEncounters(character.heroic);
+  if (heroicKills > 0) {
+    return `${Math.min(heroicKills, CURRENT_RAID_BOSS_COUNT)}/${CURRENT_RAID_BOSS_COUNT}H`;
+  }
+
+  return "";
+}
+
+function countRankedEncounters(rankings) {
+  const parsed = parseMaybeJson(rankings);
+  const encounters = new Set();
+  collectRankedEncounters(parsed, encounters);
+  return encounters.size;
+}
+
+function collectRankedEncounters(value, encounters) {
+  if (!value) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectRankedEncounters(item, encounters));
+    return;
+  }
+
+  if (typeof value !== "object") {
+    return;
+  }
+
+  if (isRankingEntry(value)) {
+    encounters.add(getEncounterKey(value));
+  }
+
+  Object.values(value).forEach((item) => collectRankedEncounters(item, encounters));
+}
+
+function isRankingEntry(value) {
+  return Boolean(
+    getEncounterKey(value) &&
+      (
+        value.rankPercent !== undefined ||
+        value.percentile !== undefined ||
+        value.bestAmount !== undefined ||
+        value.total !== undefined ||
+        value.rank !== undefined
+      )
+  );
+}
+
+function getEncounterKey(value) {
+  return (
+    value.encounterID ||
+    value.encounterId ||
+    value.encounterName ||
+    value.encounter?.id ||
+    value.encounter?.name ||
+    ""
+  );
+}
+
+function parseMaybeJson(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return null;
+  }
 }
 
 async function wclGraphql(query, variables) {
@@ -474,13 +576,7 @@ function normalizeSpecName(specName) {
 }
 
 function getSpecFromGameData(gameData) {
-  if (typeof gameData === "string") {
-    try {
-      gameData = JSON.parse(gameData);
-    } catch (error) {
-      return "";
-    }
-  }
+  gameData = parseMaybeJson(gameData);
 
   if (!gameData || typeof gameData !== "object") {
     return "";
@@ -818,6 +914,7 @@ function normalizeRoster(roster) {
     wowClass: String(character.wowClass || "WCL 연동 대기").trim().slice(0, 40),
     spec: String(character.spec || "").trim().slice(0, 40),
     role: String(character.role || "딜러").trim().slice(0, 20),
+    progress: String(character.progress || "").trim().slice(0, 20),
     healerDpsSwap: Boolean(character.healerDpsSwap),
     order: Number.isFinite(character.order) ? character.order : index,
   })).filter((character) => character.name);

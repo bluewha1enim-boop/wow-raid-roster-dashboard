@@ -117,8 +117,7 @@ h3 {
   cursor: pointer;
 }
 
-.icon-toggle svg,
-.role-button svg {
+.icon-toggle svg {
   width: 18px;
   height: 18px;
   fill: none;
@@ -466,11 +465,114 @@ td strong {
   font-size: 14px;
 }
 
+.char-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .realm {
   display: block;
   margin-top: 3px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.role-menu {
+  position: relative;
+}
+
+.role-icon-button,
+.swap-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.role-icon-button svg,
+.swap-icon svg,
+.role-popover svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.role-icon-button[data-role="탱커"] {
+  color: #6ea8ff;
+}
+
+.role-icon-button[data-role="힐러"] {
+  color: var(--good);
+}
+
+.role-icon-button[data-role="딜러"] {
+  color: var(--warn);
+}
+
+.role-icon-button:hover,
+.role-icon-button[aria-expanded="true"],
+.swap-icon:hover {
+  border-color: var(--primary);
+}
+
+.role-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+  padding: 6px;
+}
+
+.role-popover button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.role-popover button:hover,
+.role-popover button.active {
+  background: var(--button-hover);
+  color: var(--primary-dark);
+}
+
+.swap-icon {
+  width: 27px;
+  height: 27px;
+  opacity: 0.72;
+}
+
+.swap-icon.active {
+  border-color: rgba(16, 163, 127, 0.78);
+  background: rgba(16, 163, 127, 0.16);
+  color: var(--primary-dark);
+  opacity: 1;
 }
 
 .class-badge,
@@ -530,12 +632,30 @@ td strong {
   cursor: grabbing;
 }
 
-tr.dragging {
+tr.dragging-source {
   opacity: 0.55;
 }
 
-tr.drag-over td {
-  background: rgba(16, 163, 127, 0.1);
+tbody tr {
+  transition: background 0.15s ease;
+}
+
+.drag-ghost-table {
+  position: fixed;
+  z-index: 1000;
+  border-collapse: collapse;
+  pointer-events: none;
+  opacity: 0.94;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.drag-ghost-table td {
+  background: var(--panel);
+}
+
+body.is-row-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .spec-cell.selected .spec-icons {
@@ -583,61 +703,35 @@ tr.drag-over td {
   white-space: nowrap;
 }
 
-.role-buttons {
-  display: inline-grid;
-  grid-template-columns: repeat(3, 34px);
-  gap: 6px;
-}
-
-.role-cell {
+.progress-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.role-button {
-  width: 34px;
-  height: 34px;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 28px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--button-bg);
+  border-radius: 999px;
+  background: var(--panel-soft);
   color: var(--muted);
-  cursor: pointer;
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 800;
 }
 
-.role-button.active {
-  border-color: var(--primary);
-  background: rgba(16, 163, 127, 0.16);
+.progress-pill.mythic {
+  border-color: rgba(255, 122, 112, 0.58);
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--bad);
+}
+
+.progress-pill.heroic {
+  border-color: rgba(16, 163, 127, 0.58);
+  background: rgba(16, 163, 127, 0.12);
   color: var(--primary-dark);
 }
 
-.role-button:hover {
-  border-color: var(--primary-dark);
-}
-
-.swap-toggle {
-  min-height: 30px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--button-bg);
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0 9px;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.swap-toggle.active {
-  border-color: rgba(16, 163, 127, 0.78);
-  background: rgba(16, 163, 127, 0.16);
-  color: var(--primary-dark);
-}
-
-.swap-toggle:hover {
-  border-color: var(--primary-dark);
+.progress-pill.empty {
+  opacity: 0.62;
 }
 
 .number-input {

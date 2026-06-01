@@ -104,16 +104,16 @@ const healerSpecs = new Set(["회복", "보존", "운무", "신성", "수양", "
 
 const sampleRoster = [
   ["샘플죽음의기사캐릭터", "아즈샤라", "죽음의 기사", "혈기", "탱커"],
-  ["샘플악마사냥꾼캐릭터", "아즈샤라", "악마사냥꾼", "포식", "딜러"],
+  ["샘플성기사캐릭터", "아즈샤라", "성기사", "보호", "탱커"],
   ["샘플드루이드캐릭터", "아즈샤라", "드루이드", "회복", "힐러"],
+  ["샘플수도사캐릭터", "아즈샤라", "수도사", "운무", "힐러"],
+  ["샘플사제캐릭터", "아즈샤라", "사제", "신성", "힐러"],
+  ["샘플주술사캐릭터", "아즈샤라", "주술사", "복원", "힐러"],
+  ["샘플악마사냥꾼캐릭터", "아즈샤라", "악마사냥꾼", "포식", "딜러"],
   ["샘플기원사캐릭터", "아즈샤라", "기원사", "증강", "딜러"],
   ["샘플사냥꾼캐릭터", "아즈샤라", "사냥꾼", "야수", "딜러"],
   ["샘플마법사캐릭터", "아즈샤라", "마법사", "비전", "딜러"],
-  ["샘플수도사캐릭터", "아즈샤라", "수도사", "운무", "힐러"],
-  ["샘플성기사캐릭터", "아즈샤라", "성기사", "보호", "탱커"],
-  ["샘플사제캐릭터", "아즈샤라", "사제", "신성", "힐러"],
   ["샘플도적캐릭터", "아즈샤라", "도적", "암살", "딜러"],
-  ["샘플주술사캐릭터", "아즈샤라", "주술사", "복원", "힐러"],
   ["샘플흑마법사캐릭터", "아즈샤라", "흑마법사", "고통", "딜러"],
   ["샘플전사캐릭터", "아즈샤라", "전사", "무기", "딜러"],
 ].map(([name, realm, wowClass, spec, role], index) => ({
@@ -161,7 +161,7 @@ let currentUser = null;
 let schedules = [];
 let activeScheduleId = "";
 let saveTimer = null;
-let draggedCharacterId = "";
+let dragState = null;
 
 initializeTheme();
 roster = normalizeRosterOrder(roster);
@@ -608,6 +608,52 @@ function renderSpecIcons(container, character) {
   });
 }
 
+function renderRoleMenu(row, character) {
+  const roleButton = row.querySelector(".role-icon-button");
+  const popover = row.querySelector(".role-popover");
+  roleButton.innerHTML = roleIconSvg(character.role);
+  roleButton.dataset.role = character.role;
+  roleButton.title = `${character.role} 선택`;
+
+  roleButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeRolePopovers(popover);
+    const isOpen = !popover.hidden;
+    popover.hidden = isOpen;
+    roleButton.setAttribute("aria-expanded", String(!isOpen));
+  });
+
+  popover.querySelectorAll("[data-role]").forEach((button) => {
+    const role = button.dataset.role;
+    button.innerHTML = `${roleIconSvg(role)}<span>${role}</span>`;
+    button.classList.toggle("active", role === character.role);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      updateCharacter(character.id, { role });
+    });
+  });
+}
+
+function closeRolePopovers(except) {
+  document.querySelectorAll(".role-popover").forEach((popover) => {
+    if (popover === except) {
+      return;
+    }
+    popover.hidden = true;
+    const button = popover.parentElement?.querySelector(".role-icon-button");
+    button?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function renderProgress(row, character) {
+  const progressPill = row.querySelector(".progress-pill");
+  const progress = character.progress || "";
+  progressPill.textContent = progress || "미확인";
+  progressPill.classList.toggle("empty", !progress);
+  progressPill.classList.toggle("mythic", /M$/.test(progress));
+  progressPill.classList.toggle("heroic", /H$/.test(progress));
+}
+
 function resolveIconSrc(icon, folder) {
   if (/^https?:\/\//.test(icon)) {
     return icon;
@@ -623,41 +669,9 @@ function renderRoster() {
   filteredRoster.forEach((character) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.id = character.id;
-    row.addEventListener("dragover", (event) => {
-      if (!draggedCharacterId || draggedCharacterId === character.id) {
-        return;
-      }
-      event.preventDefault();
-      row.classList.add("drag-over");
-    });
-    row.addEventListener("dragleave", () => {
-      row.classList.remove("drag-over");
-    });
-    row.addEventListener("drop", (event) => {
-      event.preventDefault();
-      row.classList.remove("drag-over");
-      if (!draggedCharacterId || draggedCharacterId === character.id) {
-        return;
-      }
-      const rect = row.getBoundingClientRect();
-      const placeAfter = event.clientY > rect.top + rect.height / 2;
-      moveCharacterInVisibleOrder(draggedCharacterId, character.id, placeAfter);
-      draggedCharacterId = "";
-    });
-
     const dragHandle = row.querySelector(".drag-handle");
-    dragHandle.addEventListener("dragstart", (event) => {
-      draggedCharacterId = character.id;
-      row.classList.add("dragging");
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", character.id);
-    });
-    dragHandle.addEventListener("dragend", () => {
-      draggedCharacterId = "";
-      row.classList.remove("dragging");
-      document.querySelectorAll(".drag-over").forEach((element) => {
-        element.classList.remove("drag-over");
-      });
+    dragHandle.addEventListener("pointerdown", (event) => {
+      beginRowDrag(event, row, character);
     });
 
     const classMeta = getClassMeta(character.wowClass);
@@ -668,6 +682,8 @@ function renderRoster() {
 
     row.querySelector(".char-name").textContent = character.name;
     row.querySelector(".realm").textContent = character.realm;
+    renderRoleMenu(row, character);
+    renderProgress(row, character);
     classBadge.textContent = character.wowClass || pendingClass;
     classBadge.style.color = classMeta ? classMeta.color : "var(--muted)";
     classBadge.classList.toggle("pending", !classMeta);
@@ -676,20 +692,12 @@ function renderRoster() {
     specCell.title = hasSpec ? `${character.spec} 전문화 선택됨` : "전문화 선택 필요";
     renderSpecIcons(specIcons, character);
 
-    row.querySelectorAll(".role-button").forEach((button) => {
-      button.innerHTML = roleIconSvg(button.dataset.role);
-      button.classList.toggle("active", button.dataset.role === character.role);
-      button.setAttribute("aria-pressed", String(button.dataset.role === character.role));
-      button.addEventListener("click", () => {
-        updateCharacter(character.id, { role: button.dataset.role });
-      });
-    });
-
-    const swapToggle = row.querySelector(".swap-toggle");
+    const swapToggle = row.querySelector(".swap-icon");
     const showSwapToggle = canShowHealerDpsSwap(character);
     swapToggle.hidden = !showSwapToggle;
     swapToggle.classList.toggle("active", Boolean(character.healerDpsSwap));
     swapToggle.setAttribute("aria-pressed", String(Boolean(character.healerDpsSwap)));
+    swapToggle.innerHTML = swapSvg();
     swapToggle.addEventListener("click", () => {
       updateCharacter(character.id, { healerDpsSwap: !character.healerDpsSwap });
     });
@@ -708,6 +716,7 @@ function renderRoster() {
           wowClass: wclCharacter.wowClass || character.wowClass,
           spec: wclCharacter.spec || character.spec,
           role: wclCharacter.role || inferRoleFromSpec(wclCharacter.spec) || character.role,
+          progress: wclCharacter.progress || character.progress,
         });
         setLookupStatus(`${character.name} 정보를 갱신했습니다.`, "good");
       } catch (error) {
@@ -754,6 +763,135 @@ function moveCharacterInVisibleOrder(draggedId, targetId, placeAfter) {
   applyVisibleOrder(visibleIds);
 }
 
+function beginRowDrag(event, row, character) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  event.preventDefault();
+  closeRolePopovers();
+  const rect = row.getBoundingClientRect();
+  const ghost = makeDragGhost(row, rect);
+  dragState = {
+    id: character.id,
+    row,
+    ghost,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    moved: false,
+  };
+  row.classList.add("dragging-source");
+  document.body.classList.add("is-row-dragging");
+  updateDragGhost(event);
+
+  document.addEventListener("pointermove", handleRowDragMove);
+  document.addEventListener("pointerup", finishRowDrag);
+  document.addEventListener("pointercancel", cancelRowDrag);
+}
+
+function makeDragGhost(row, rect) {
+  const ghost = document.createElement("table");
+  ghost.className = "drag-ghost-table";
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.left = `${rect.left}px`;
+  ghost.style.top = `${rect.top}px`;
+  const body = document.createElement("tbody");
+  const clone = row.cloneNode(true);
+  clone.classList.remove("dragging-source");
+  body.append(clone);
+  ghost.append(body);
+  document.body.append(ghost);
+  return ghost;
+}
+
+function handleRowDragMove(event) {
+  if (!dragState) {
+    return;
+  }
+
+  dragState.moved = true;
+  updateDragGhost(event);
+  const targetRow = document
+    .elementFromPoint(event.clientX, event.clientY)
+    ?.closest("#rosterBody tr");
+
+  if (!targetRow || targetRow === dragState.row) {
+    return;
+  }
+
+  const rect = targetRow.getBoundingClientRect();
+  const placeAfter = event.clientY > rect.top + rect.height / 2;
+  animateRosterRows(() => {
+    if (placeAfter) {
+      targetRow.after(dragState.row);
+    } else {
+      targetRow.before(dragState.row);
+    }
+  });
+}
+
+function updateDragGhost(event) {
+  if (!dragState) {
+    return;
+  }
+  dragState.ghost.style.left = `${event.clientX - dragState.offsetX}px`;
+  dragState.ghost.style.top = `${event.clientY - dragState.offsetY}px`;
+}
+
+function animateRosterRows(mutator) {
+  const rows = [...rosterBody.querySelectorAll("tr")];
+  const firstRects = new Map(rows.map((row) => [row, row.getBoundingClientRect()]));
+  mutator();
+  [...rosterBody.querySelectorAll("tr")].forEach((row) => {
+    const first = firstRects.get(row);
+    if (!first) {
+      return;
+    }
+    const last = row.getBoundingClientRect();
+    const deltaY = first.top - last.top;
+    if (!deltaY) {
+      return;
+    }
+    row.style.transition = "none";
+    row.style.transform = `translateY(${deltaY}px)`;
+    requestAnimationFrame(() => {
+      row.style.transition = "transform 150ms ease";
+      row.style.transform = "";
+    });
+  });
+}
+
+function finishRowDrag() {
+  if (!dragState) {
+    return;
+  }
+
+  const visibleIds = [...rosterBody.querySelectorAll("tr")].map((row) => row.dataset.id);
+  cleanupRowDrag();
+  if (visibleIds.length) {
+    applyVisibleOrder(visibleIds);
+  }
+}
+
+function cancelRowDrag() {
+  cleanupRowDrag();
+  render();
+}
+
+function cleanupRowDrag() {
+  if (!dragState) {
+    return;
+  }
+
+  dragState.row.classList.remove("dragging-source");
+  dragState.ghost.remove();
+  dragState = null;
+  document.body.classList.remove("is-row-dragging");
+  document.removeEventListener("pointermove", handleRowDragMove);
+  document.removeEventListener("pointerup", finishRowDrag);
+  document.removeEventListener("pointercancel", cancelRowDrag);
+}
+
 function applyVisibleOrder(visibleIds) {
   const visibleSet = new Set(visibleIds);
   const charactersById = new Map(roster.map((character) => [character.id, character]));
@@ -768,6 +906,7 @@ function applyVisibleOrder(visibleIds) {
       return charactersById.get(nextId);
     })
     .map((character, index) => ({ ...character, order: index }));
+  sortLabel.textContent = "수동 정렬";
   saveRoster();
   render();
 }
@@ -777,19 +916,6 @@ function getNextOrder() {
 }
 
 const sortOptions = {
-  manual: { label: "기본", compare: compareManualOrder },
-  "healer-tank-dps": {
-    label: "힐 → 탱 → 딜",
-    compare: makeRoleComparator(["힐러", "탱커", "딜러"]),
-  },
-  "dps-tank-healer": {
-    label: "딜 → 탱 → 힐",
-    compare: makeRoleComparator(["딜러", "탱커", "힐러"]),
-  },
-  "tank-dps-healer": {
-    label: "탱 → 딜 → 힐",
-    compare: makeRoleComparator(["탱커", "딜러", "힐러"]),
-  },
   "tank-healer-dps": {
     label: "탱 → 힐 → 딜",
     compare: makeRoleComparator(["탱커", "힐러", "딜러"]),
@@ -828,7 +954,7 @@ function compareName(a, b) {
 }
 
 function applySort(sortKey) {
-  const option = sortOptions[sortKey] || sortOptions.manual;
+  const option = sortOptions[sortKey] || sortOptions["tank-healer-dps"];
   roster = [...roster]
     .sort(option.compare)
     .map((character, index) => ({ ...character, order: index }));
@@ -994,6 +1120,7 @@ async function buildCharacterFromInviteName(inviteName) {
       wowClass: wclCharacter.wowClass || pendingClass,
       spec: wclCharacter.spec || "",
       role: wclCharacter.role || inferRoleFromSpec(wclCharacter.spec) || "딜러",
+      progress: wclCharacter.progress || "",
     };
   } catch (error) {
     // Keep the pending row; the user can refresh it later.
@@ -1075,6 +1202,10 @@ function roleIconSvg(role) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4l5.5 5.5-2.4 2.4-1.1-1.1-7.7 7.7H5.5v-3.3l7.7-7.7-1.1-1.1L14.5 4z"/><path d="M9.5 4L4 9.5l2.4 2.4 1.1-1.1 7.7 7.7h3.3v-3.3l-7.7-7.7 1.1-1.1L9.5 4z"/></svg>`;
 }
 
+function swapSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-3-3M17 17H7l3 3"/></svg>`;
+}
+
 function sunSvg() {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.9 4.9L7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>`;
 }
@@ -1135,6 +1266,9 @@ document.addEventListener("click", (event) => {
   if (!sortMenu.hidden && !event.target.closest(".sort-menu")) {
     closeSortMenu();
   }
+  if (!event.target.closest(".role-menu")) {
+    closeRolePopovers();
+  }
 });
 
 addForm.addEventListener("submit", async (event) => {
@@ -1164,6 +1298,7 @@ addForm.addEventListener("submit", async (event) => {
       wowClass: wclCharacter.wowClass || pendingClass,
       spec: wclCharacter.spec || "",
       role: wclCharacter.role || inferRoleFromSpec(wclCharacter.spec) || "딜러",
+      progress: wclCharacter.progress || "",
     };
     setLookupStatus(`${character.name} 정보를 WCL에서 불러와 추가했습니다.`, "good");
   } catch (error) {

@@ -96,18 +96,13 @@
           <label for="sortMenuButton">정렬</label>
           <button id="sortMenuButton" class="sort-button" type="button" aria-expanded="false">
             <span class="sort-icon">↕</span>
-            <span id="sortLabel">기본</span>
+            <span id="sortLabel">탱 → 힐 → 딜</span>
           </button>
           <div id="sortMenu" class="sort-options" hidden>
-            <strong>Sorting options</strong>
-            <button type="button" data-sort="manual">Default</button>
-            <button type="button" data-sort="healer-tank-dps">Healer → Tank → Dps</button>
-            <button type="button" data-sort="dps-tank-healer">Dps → Tank → Healer</button>
-            <button type="button" data-sort="tank-dps-healer">Tank → Dps → Healer</button>
-            <button type="button" data-sort="tank-healer-dps">Tank → Healer → Dps</button>
-            <button type="button" data-sort="class">Class</button>
-            <button type="button" data-sort="name-asc">A-Z</button>
-            <button type="button" data-sort="name-desc">Z-A</button>
+            <strong>정렬 옵션</strong>
+            <button type="button" data-sort="tank-healer-dps">포지션 정렬</button>
+            <button type="button" data-sort="class">클래스 정렬</button>
+            <button type="button" data-sort="name-asc">이름순 정렬</button>
           </div>
         </div>
         <div class="field">
@@ -135,7 +130,7 @@
                   <th>캐릭터</th>
                   <th>직업</th>
                   <th>전문화</th>
-                  <th>역할</th>
+                  <th>진도</th>
                   <th>WCL</th>
                   <th></th>
                 </tr>
@@ -162,24 +157,26 @@
     <template id="rowTemplate">
       <tr>
         <td class="drag-cell">
-          <button class="drag-handle" type="button" draggable="true" title="순서 변경">↕</button>
+          <button class="drag-handle" type="button" title="순서 변경">↕</button>
         </td>
         <td>
-          <strong class="char-name"></strong>
+          <div class="char-line">
+            <div class="role-menu">
+              <button class="role-icon-button" type="button" aria-expanded="false" title="역할 선택"></button>
+              <div class="role-popover" hidden>
+                <button type="button" data-role="탱커"></button>
+                <button type="button" data-role="힐러"></button>
+                <button type="button" data-role="딜러"></button>
+              </div>
+            </div>
+            <strong class="char-name"></strong>
+            <button class="swap-icon" type="button" title="힐/딜 스왑 가능"></button>
+          </div>
           <span class="realm"></span>
         </td>
         <td><span class="class-badge"></span></td>
         <td class="spec-cell"><div class="spec-icons"></div></td>
-        <td>
-          <div class="role-cell">
-            <div class="role-buttons" aria-label="역할 선택">
-              <button class="role-button" type="button" data-role="탱커" title="탱커"></button>
-              <button class="role-button" type="button" data-role="힐러" title="힐러"></button>
-              <button class="role-button" type="button" data-role="딜러" title="딜러"></button>
-            </div>
-            <button class="swap-toggle" type="button" title="힐/딜 스왑 가능">힐↔딜</button>
-          </div>
-        </td>
+        <td><span class="progress-pill"></span></td>
         <td>
           <div class="row-actions">
             <button class="small-button refresh-row-button" type="button">갱신</button>
