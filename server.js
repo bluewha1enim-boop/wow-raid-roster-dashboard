@@ -38,6 +38,8 @@ const specNameMap = {
   Unholy: "부정",
   Havoc: "파멸",
   Vengeance: "복수",
+  Devour: "포식",
+  Devourer: "포식",
   Balance: "조화",
   Feral: "야성",
   Guardian: "수호",
@@ -379,6 +381,7 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
           id
           name
           classID
+          specName
           level
           gameData
         }
@@ -398,7 +401,7 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
   }
 
   const wowClass = classIdToName[character.classID] || "WCL 연동 대기";
-  const spec = getSpecFromGameData(character.gameData);
+  const spec = normalizeSpecName(character.specName) || getSpecFromGameData(character.gameData);
 
   return {
     id: character.id,
@@ -472,6 +475,14 @@ function normalizeSpecName(specName) {
 }
 
 function getSpecFromGameData(gameData) {
+  if (typeof gameData === "string") {
+    try {
+      gameData = JSON.parse(gameData);
+    } catch (error) {
+      return "";
+    }
+  }
+
   if (!gameData || typeof gameData !== "object") {
     return "";
   }
@@ -808,6 +819,7 @@ function normalizeRoster(roster) {
     wowClass: String(character.wowClass || "WCL 연동 대기").trim().slice(0, 40),
     spec: String(character.spec || "").trim().slice(0, 40),
     role: String(character.role || "딜러").trim().slice(0, 20),
+    healerDpsSwap: Boolean(character.healerDpsSwap),
     order: Number.isFinite(character.order) ? character.order : index,
   })).filter((character) => character.name);
 }

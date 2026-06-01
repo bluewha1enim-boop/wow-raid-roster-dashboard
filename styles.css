@@ -424,6 +424,21 @@ td strong {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.spec-cell.selected .spec-icons {
+  border-color: rgba(16, 163, 127, 0.58);
+  background: rgba(16, 163, 127, 0.09);
+}
+
+.spec-cell.missing .spec-icons {
+  border-color: rgba(255, 122, 112, 0.68);
+  background: rgba(180, 35, 24, 0.1);
 }
 
 .spec-button {
@@ -467,6 +482,12 @@ td strong {
   gap: 6px;
 }
 
+.role-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .role-button {
   width: 34px;
   height: 34px;
@@ -486,6 +507,29 @@ td strong {
 }
 
 .role-button:hover {
+  border-color: var(--primary-dark);
+}
+
+.swap-toggle {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.swap-toggle.active {
+  border-color: rgba(16, 163, 127, 0.78);
+  background: rgba(16, 163, 127, 0.16);
+  color: var(--primary-dark);
+}
+
+.swap-toggle:hover {
   border-color: var(--primary-dark);
 }
 

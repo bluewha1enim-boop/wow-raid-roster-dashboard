@@ -28,6 +28,7 @@ const specsByClass = {
   "악마사냥꾼": [
     { name: "파멸", icon: "demonhunter-havoc.jpg" },
     { name: "복수", icon: "demonhunter-vengeance.jpg" },
+    { name: "포식", icon: "https://wow.zamimg.com/images/wow/icons/large/classicon_demonhunter_void_256.jpg" },
   ],
   "드루이드": [
     { name: "조화", icon: "druid-balance.jpg" },
@@ -102,31 +103,19 @@ const tankSpecs = new Set(["혈기", "복수", "수호", "양조", "보호", "�
 const healerSpecs = new Set(["회복", "보존", "운무", "신성", "수양", "복원"]);
 
 const sampleRoster = [
-  ["아르덴", "아즈샤라", "전사", "방어", "탱커"],
-  ["문가드", "하이잘", "드루이드", "수호", "탱커"],
-  ["세라핀", "아즈샤라", "사제", "신성", "힐러"],
-  ["엘레나", "헬스크림", "성기사", "신성", "힐러"],
-  ["비취비", "아즈샤라", "수도사", "운무", "힐러"],
-  ["토템왕", "윈드러너", "주술사", "복원", "힐러"],
-  ["노바린", "아즈샤라", "마법사", "화염", "딜러"],
-  ["검은별", "하이잘", "흑마법사", "파괴", "딜러"],
-  ["초록화살", "불타는군단", "사냥꾼", "야수", "딜러"],
-  ["달빛칼날", "아즈샤라", "도적", "암살", "딜러"],
-  ["서리숨결", "헬스크림", "죽음의 기사", "냉기", "딜러"],
-  ["지옥눈", "아즈샤라", "악마사냥꾼", "파멸", "딜러"],
-  ["용비늘", "데스윙", "기원사", "증강", "딜러"],
-  ["태양망치", "하이잘", "성기사", "징벌", "딜러"],
-  ["폭풍술사", "윈드러너", "주술사", "정기", "딜러"],
-  ["불꽃책", "아즈샤라", "마법사", "비전", "딜러"],
-  ["야생발톱", "하이잘", "드루이드", "야성", "딜러"],
-  ["검투혼", "헬스크림", "전사", "무기", "딜러"],
-  ["빛의숨", "아즈샤라", "사제", "수양", "힐러"],
-  ["암영", "불타는군단", "도적", "잠행", "딜러"],
-  ["숲노래", "윈드러너", "사냥꾼", "사격", "딜러"],
-  ["공허잔", "아즈샤라", "흑마법사", "고통", "딜러"],
-  ["안개차", "데스윙", "수도사", "풍운", "딜러"],
-  ["루비날개", "하이잘", "기원사", "보존", "힐러"],
-  ["복수눈", "아즈샤라", "악마사냥꾼", "파멸", "딜러"],
+  ["샘플죽음의기사캐릭터", "아즈샤라", "죽음의 기사", "혈기", "탱커"],
+  ["샘플악마사냥꾼캐릭터", "아즈샤라", "악마사냥꾼", "포식", "딜러"],
+  ["샘플드루이드캐릭터", "아즈샤라", "드루이드", "회복", "힐러"],
+  ["샘플기원사캐릭터", "아즈샤라", "기원사", "증강", "딜러"],
+  ["샘플사냥꾼캐릭터", "아즈샤라", "사냥꾼", "야수", "딜러"],
+  ["샘플마법사캐릭터", "아즈샤라", "마법사", "비전", "딜러"],
+  ["샘플수도사캐릭터", "아즈샤라", "수도사", "운무", "힐러"],
+  ["샘플성기사캐릭터", "아즈샤라", "성기사", "보호", "탱커"],
+  ["샘플사제캐릭터", "아즈샤라", "사제", "신성", "힐러"],
+  ["샘플도적캐릭터", "아즈샤라", "도적", "암살", "딜러"],
+  ["샘플주술사캐릭터", "아즈샤라", "주술사", "복원", "힐러"],
+  ["샘플흑마법사캐릭터", "아즈샤라", "흑마법사", "고통", "딜러"],
+  ["샘플전사캐릭터", "아즈샤라", "전사", "무기", "딜러"],
 ].map(([name, realm, wowClass, spec, role], index) => ({
   id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`,
   name,
@@ -134,6 +123,7 @@ const sampleRoster = [
   wowClass,
   spec,
   role,
+  healerDpsSwap: false,
 }));
 
 const rosterBody = document.querySelector("#rosterBody");
@@ -431,12 +421,9 @@ async function switchSchedule(scheduleId) {
 }
 
 async function createSchedule() {
-  const name = window.prompt("새 일정 이름을 입력해 주세요.", "새 일정");
-  if (!name) {
-    return;
-  }
-
   await flushScheduleSave();
+  const nextNumber = schedules.length + 1;
+  const name = `새 일정 ${nextNumber}`;
   setSaveStatus("새 일정을 만드는 중...", "neutral");
   try {
     const payload = await apiRequest("/api/schedules", {
@@ -448,6 +435,8 @@ async function createSchedule() {
     roster = [];
     updateScheduleUi();
     render();
+    scheduleNameInput.focus();
+    scheduleNameInput.select();
     setSaveStatus("새 일정 저장됨", "good");
   } catch (error) {
     setSaveStatus(error.message, "bad");
@@ -565,6 +554,8 @@ function getFilteredRoster() {
 function renderSpecIcons(container, character) {
   const specs = specsByClass[character.wowClass] || [];
   container.innerHTML = "";
+  container.classList.toggle("selected", Boolean(character.spec));
+  container.classList.toggle("missing", !character.spec);
 
   if (!specs.length) {
     const pending = document.createElement("span");
@@ -582,7 +573,7 @@ function renderSpecIcons(container, character) {
     button.setAttribute("aria-label", spec.name);
     button.setAttribute("aria-pressed", String(character.spec === spec.name));
     button.classList.toggle("active", character.spec === spec.name);
-    button.innerHTML = `<img src="assets/icons/${spec.icon}" alt="">`;
+    button.innerHTML = `<img src="${resolveIconSrc(spec.icon, "icons")}" alt="">`;
     button.addEventListener("click", () => {
       updateCharacter(character.id, {
         spec: spec.name,
@@ -591,6 +582,13 @@ function renderSpecIcons(container, character) {
     });
     container.append(button);
   });
+}
+
+function resolveIconSrc(icon, folder) {
+  if (/^https?:\/\//.test(icon)) {
+    return icon;
+  }
+  return `assets/${folder}/${icon}`;
 }
 
 function renderRoster() {
@@ -603,12 +601,17 @@ function renderRoster() {
     const classMeta = getClassMeta(character.wowClass);
     const classBadge = row.querySelector(".class-badge");
     const specIcons = row.querySelector(".spec-icons");
+    const specCell = row.querySelector(".spec-cell");
+    const hasSpec = Boolean(character.spec);
 
     row.querySelector(".char-name").textContent = character.name;
     row.querySelector(".realm").textContent = character.realm;
     classBadge.textContent = character.wowClass || pendingClass;
     classBadge.style.color = classMeta ? classMeta.color : "var(--muted)";
     classBadge.classList.toggle("pending", !classMeta);
+    specCell.classList.toggle("selected", hasSpec);
+    specCell.classList.toggle("missing", !hasSpec);
+    specCell.title = hasSpec ? `${character.spec} 전문화 선택됨` : "전문화 선택 필요";
     renderSpecIcons(specIcons, character);
 
     row.querySelectorAll(".role-button").forEach((button) => {
@@ -618,6 +621,15 @@ function renderRoster() {
       button.addEventListener("click", () => {
         updateCharacter(character.id, { role: button.dataset.role });
       });
+    });
+
+    const swapToggle = row.querySelector(".swap-toggle");
+    const showSwapToggle = canShowHealerDpsSwap(character);
+    swapToggle.hidden = !showSwapToggle;
+    swapToggle.classList.toggle("active", Boolean(character.healerDpsSwap));
+    swapToggle.setAttribute("aria-pressed", String(Boolean(character.healerDpsSwap)));
+    swapToggle.addEventListener("click", () => {
+      updateCharacter(character.id, { healerDpsSwap: !character.healerDpsSwap });
     });
 
     row.querySelector(".wcl-row-button").addEventListener("click", () => {
@@ -653,10 +665,17 @@ function renderRoster() {
 
 function updateCharacter(id, patch) {
   roster = roster.map((character) =>
-    character.id === id ? { ...character, ...patch } : character
+    character.id === id ? normalizeCharacterState({ ...character, ...patch }) : character
   );
   saveRoster();
   render();
+}
+
+function normalizeCharacterState(character) {
+  if (!canShowHealerDpsSwap(character)) {
+    return { ...character, healerDpsSwap: false };
+  }
+  return character;
 }
 
 function renderSummary() {
@@ -791,6 +810,7 @@ async function buildCharacterFromInviteName(inviteName) {
     wowClass: pendingClass,
     spec: "",
     role: "딜러",
+    healerDpsSwap: false,
   };
 
   try {
@@ -934,6 +954,7 @@ addForm.addEventListener("submit", async (event) => {
     wowClass: pendingClass,
     spec: "",
     role: "딜러",
+    healerDpsSwap: false,
   };
 
   submitButton.disabled = true;
@@ -978,4 +999,17 @@ function inferRoleFromSpec(spec) {
     return "힐러";
   }
   return spec ? "딜러" : "";
+}
+
+function canShowHealerDpsSwap(character) {
+  if (!["힐러", "딜러"].includes(character.role)) {
+    return false;
+  }
+
+  const specs = specsByClass[character.wowClass] || [];
+  const hasHealerSpec = specs.some((spec) => healerSpecs.has(spec.name));
+  const hasDpsSpec = specs.some(
+    (spec) => !tankSpecs.has(spec.name) && !healerSpecs.has(spec.name)
+  );
+  return hasHealerSpec && hasDpsSpec;
 }
