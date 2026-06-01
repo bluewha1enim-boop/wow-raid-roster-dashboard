@@ -306,7 +306,7 @@ h3 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 160px;
+  grid-template-columns: 170px 160px;
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -314,6 +314,82 @@ h3 {
 .field {
   display: grid;
   gap: 6px;
+}
+
+.sort-menu {
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--button-bg);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0 11px;
+  font-weight: 800;
+}
+
+.sort-button:hover,
+.sort-button[aria-expanded="true"] {
+  border-color: var(--primary);
+}
+
+.sort-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--primary-dark);
+  line-height: 1;
+}
+
+.sort-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+  padding: 8px;
+}
+
+.sort-options strong {
+  display: block;
+  padding: 9px 10px 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sort-options button {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0 10px;
+  text-align: left;
+  font-size: 13px;
+}
+
+.sort-options button:hover {
+  background: var(--button-hover);
+  color: var(--primary-dark);
 }
 
 label {
@@ -429,6 +505,37 @@ td strong {
   border-radius: 8px;
   padding: 3px;
   transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drag-cell {
+  width: 42px;
+  padding-right: 0;
+}
+
+.drag-handle {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+tr.dragging {
+  opacity: 0.55;
+}
+
+tr.drag-over td {
+  background: rgba(16, 163, 127, 0.1);
 }
 
 .spec-cell.selected .spec-icons {

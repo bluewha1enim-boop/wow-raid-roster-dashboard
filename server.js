@@ -381,7 +381,6 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
           id
           name
           classID
-          specName
           level
           gameData
         }
@@ -401,7 +400,7 @@ async function queryWclCharacter({ name, realm, serverSlug, serverRegion }) {
   }
 
   const wowClass = classIdToName[character.classID] || "WCL 연동 대기";
-  const spec = normalizeSpecName(character.specName) || getSpecFromGameData(character.gameData);
+  const spec = getSpecFromGameData(character.gameData);
 
   return {
     id: character.id,

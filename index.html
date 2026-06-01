@@ -92,6 +92,24 @@
       </section>
 
       <section class="toolbar" aria-label="필터">
+        <div class="sort-menu">
+          <label for="sortMenuButton">정렬</label>
+          <button id="sortMenuButton" class="sort-button" type="button" aria-expanded="false">
+            <span class="sort-icon">↕</span>
+            <span id="sortLabel">기본</span>
+          </button>
+          <div id="sortMenu" class="sort-options" hidden>
+            <strong>Sorting options</strong>
+            <button type="button" data-sort="manual">Default</button>
+            <button type="button" data-sort="healer-tank-dps">Healer → Tank → Dps</button>
+            <button type="button" data-sort="dps-tank-healer">Dps → Tank → Healer</button>
+            <button type="button" data-sort="tank-dps-healer">Tank → Dps → Healer</button>
+            <button type="button" data-sort="tank-healer-dps">Tank → Healer → Dps</button>
+            <button type="button" data-sort="class">Class</button>
+            <button type="button" data-sort="name-asc">A-Z</button>
+            <button type="button" data-sort="name-desc">Z-A</button>
+          </div>
+        </div>
         <div class="field">
           <label for="roleFilter">역할</label>
           <select id="roleFilter">
@@ -113,6 +131,7 @@
             <table>
               <thead>
                 <tr>
+                  <th></th>
                   <th>캐릭터</th>
                   <th>직업</th>
                   <th>전문화</th>
@@ -142,6 +161,9 @@
 
     <template id="rowTemplate">
       <tr>
+        <td class="drag-cell">
+          <button class="drag-handle" type="button" draggable="true" title="순서 변경">↕</button>
+        </td>
         <td>
           <strong class="char-name"></strong>
           <span class="realm"></span>

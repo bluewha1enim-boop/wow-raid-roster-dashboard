@@ -124,6 +124,7 @@ const sampleRoster = [
   spec,
   role,
   healerDpsSwap: false,
+  order: index,
 }));
 
 const rosterBody = document.querySelector("#rosterBody");
@@ -135,6 +136,9 @@ const exportButton = document.querySelector("#exportButton");
 const resetButton = document.querySelector("#resetButton");
 const themeToggle = document.querySelector("#themeToggle");
 const lookupStatus = document.querySelector("#lookupStatus");
+const sortMenuButton = document.querySelector("#sortMenuButton");
+const sortMenu = document.querySelector("#sortMenu");
+const sortLabel = document.querySelector("#sortLabel");
 const authPanel = document.querySelector("#authPanel");
 const authForm = document.querySelector("#authForm");
 const authUsername = document.querySelector("#authUsername");
@@ -157,8 +161,10 @@ let currentUser = null;
 let schedules = [];
 let activeScheduleId = "";
 let saveTimer = null;
+let draggedCharacterId = "";
 
 initializeTheme();
+roster = normalizeRosterOrder(roster);
 render();
 initializeApp();
 
@@ -176,6 +182,7 @@ function loadRoster() {
 }
 
 function saveRoster() {
+  roster = normalizeRosterOrder(roster);
   if (!currentUser || !activeScheduleId) {
     localStorage.setItem(storageKey, JSON.stringify(roster));
     setSaveStatus("로컬 저장됨", "good");
@@ -194,6 +201,21 @@ function saveRoster() {
 
 function cloneRoster(entries) {
   return JSON.parse(JSON.stringify(entries || []));
+}
+
+function normalizeRosterOrder(entries) {
+  return cloneRoster(entries)
+    .map((character, index) => ({
+      ...character,
+      order: Number.isFinite(character.order) ? character.order : index,
+      healerDpsSwap: Boolean(character.healerDpsSwap),
+    }))
+    .sort(compareManualOrder)
+    .map((character, index) => ({ ...character, order: index }));
+}
+
+function compareManualOrder(a, b) {
+  return (a.order ?? 0) - (b.order ?? 0);
 }
 
 async function initializeApp() {
@@ -292,7 +314,7 @@ async function loadSchedules({ migrateLocal }) {
   schedules = payload.schedules || [];
 
   if (!schedules.length) {
-    const initialRoster = migrateLocal ? cloneRoster(roster) : [];
+    const initialRoster = migrateLocal ? normalizeRosterOrder(roster) : [];
     const created = await apiRequest("/api/schedules", {
       method: "POST",
       body: {
@@ -304,7 +326,7 @@ async function loadSchedules({ migrateLocal }) {
   }
 
   activeScheduleId = schedules[0].id;
-  roster = cloneRoster(schedules[0].roster);
+  roster = normalizeRosterOrder(schedules[0].roster);
   updateAuthUi();
   updateScheduleUi();
   render();
@@ -415,7 +437,7 @@ async function switchSchedule(scheduleId) {
   }
 
   activeScheduleId = scheduleId;
-  roster = cloneRoster(nextSchedule.roster);
+  roster = normalizeRosterOrder(nextSchedule.roster);
   updateScheduleUi();
   render();
 }
@@ -475,7 +497,7 @@ async function deleteActiveSchedule() {
     await apiRequest(`/api/schedules/${activeSchedule.id}`, { method: "DELETE" });
     schedules = schedules.filter((schedule) => schedule.id !== activeSchedule.id);
     activeScheduleId = schedules[0]?.id || "";
-    roster = cloneRoster(schedules[0]?.roster || []);
+    roster = normalizeRosterOrder(schedules[0]?.roster || []);
     updateScheduleUi();
     render();
     setSaveStatus("삭제됨", "good");
@@ -545,10 +567,12 @@ async function fetchWclCharacter(character) {
 }
 
 function getFilteredRoster() {
-  return roster.filter((character) => {
-    const matchesRole = roleFilter.value === "all" || character.role === roleFilter.value;
-    return matchesRole;
-  });
+  return [...roster]
+    .sort(compareManualOrder)
+    .filter((character) => {
+      const matchesRole = roleFilter.value === "all" || character.role === roleFilter.value;
+      return matchesRole;
+    });
 }
 
 function renderSpecIcons(container, character) {
@@ -598,6 +622,44 @@ function renderRoster() {
 
   filteredRoster.forEach((character) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
+    row.dataset.id = character.id;
+    row.addEventListener("dragover", (event) => {
+      if (!draggedCharacterId || draggedCharacterId === character.id) {
+        return;
+      }
+      event.preventDefault();
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drag-over");
+    });
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      row.classList.remove("drag-over");
+      if (!draggedCharacterId || draggedCharacterId === character.id) {
+        return;
+      }
+      const rect = row.getBoundingClientRect();
+      const placeAfter = event.clientY > rect.top + rect.height / 2;
+      moveCharacterInVisibleOrder(draggedCharacterId, character.id, placeAfter);
+      draggedCharacterId = "";
+    });
+
+    const dragHandle = row.querySelector(".drag-handle");
+    dragHandle.addEventListener("dragstart", (event) => {
+      draggedCharacterId = character.id;
+      row.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", character.id);
+    });
+    dragHandle.addEventListener("dragend", () => {
+      draggedCharacterId = "";
+      row.classList.remove("dragging");
+      document.querySelectorAll(".drag-over").forEach((element) => {
+        element.classList.remove("drag-over");
+      });
+    });
+
     const classMeta = getClassMeta(character.wowClass);
     const classBadge = row.querySelector(".class-badge");
     const specIcons = row.querySelector(".spec-icons");
@@ -676,6 +738,115 @@ function normalizeCharacterState(character) {
     return { ...character, healerDpsSwap: false };
   }
   return character;
+}
+
+function moveCharacterInVisibleOrder(draggedId, targetId, placeAfter) {
+  const visibleIds = getFilteredRoster().map((character) => character.id);
+  const fromIndex = visibleIds.indexOf(draggedId);
+  const targetIndex = visibleIds.indexOf(targetId);
+  if (fromIndex === -1 || targetIndex === -1) {
+    return;
+  }
+
+  visibleIds.splice(fromIndex, 1);
+  const adjustedTargetIndex = visibleIds.indexOf(targetId);
+  visibleIds.splice(adjustedTargetIndex + (placeAfter ? 1 : 0), 0, draggedId);
+  applyVisibleOrder(visibleIds);
+}
+
+function applyVisibleOrder(visibleIds) {
+  const visibleSet = new Set(visibleIds);
+  const charactersById = new Map(roster.map((character) => [character.id, character]));
+  const orderedVisible = [...visibleIds];
+  roster = [...roster]
+    .sort(compareManualOrder)
+    .map((character) => {
+      if (!visibleSet.has(character.id)) {
+        return character;
+      }
+      const nextId = orderedVisible.shift();
+      return charactersById.get(nextId);
+    })
+    .map((character, index) => ({ ...character, order: index }));
+  saveRoster();
+  render();
+}
+
+function getNextOrder() {
+  return roster.reduce((max, character) => Math.max(max, character.order ?? -1), -1) + 1;
+}
+
+const sortOptions = {
+  manual: { label: "기본", compare: compareManualOrder },
+  "healer-tank-dps": {
+    label: "힐 → 탱 → 딜",
+    compare: makeRoleComparator(["힐러", "탱커", "딜러"]),
+  },
+  "dps-tank-healer": {
+    label: "딜 → 탱 → 힐",
+    compare: makeRoleComparator(["딜러", "탱커", "힐러"]),
+  },
+  "tank-dps-healer": {
+    label: "탱 → 딜 → 힐",
+    compare: makeRoleComparator(["탱커", "딜러", "힐러"]),
+  },
+  "tank-healer-dps": {
+    label: "탱 → 힐 → 딜",
+    compare: makeRoleComparator(["탱커", "힐러", "딜러"]),
+  },
+  class: {
+    label: "직업",
+    compare: (a, b) =>
+      classSortValue(a) - classSortValue(b) ||
+      compareRole(["탱커", "힐러", "딜러"], a, b) ||
+      compareName(a, b),
+  },
+  "name-asc": { label: "A-Z", compare: compareName },
+  "name-desc": { label: "Z-A", compare: (a, b) => compareName(b, a) },
+};
+
+function makeRoleComparator(order) {
+  return (a, b) => compareRole(order, a, b) || classSortValue(a) - classSortValue(b) || compareName(a, b);
+}
+
+function compareRole(order, a, b) {
+  return roleSortValue(order, a.role) - roleSortValue(order, b.role);
+}
+
+function roleSortValue(order, role) {
+  const index = order.indexOf(role);
+  return index === -1 ? order.length : index;
+}
+
+function classSortValue(character) {
+  const index = classes.findIndex((wowClass) => wowClass.name === character.wowClass);
+  return index === -1 ? classes.length : index;
+}
+
+function compareName(a, b) {
+  return a.name.localeCompare(b.name, "ko-KR", { numeric: true, sensitivity: "base" });
+}
+
+function applySort(sortKey) {
+  const option = sortOptions[sortKey] || sortOptions.manual;
+  roster = [...roster]
+    .sort(option.compare)
+    .map((character, index) => ({ ...character, order: index }));
+  sortLabel.textContent = option.label;
+  closeSortMenu();
+  saveRoster();
+  render();
+}
+
+function toggleSortMenu() {
+  const isOpen = !sortMenu.hidden;
+  sortMenu.hidden = isOpen;
+  sortMenuButton.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closeSortMenu() {
+  sortMenu.hidden = true;
+  sortMenuButton.setAttribute("aria-expanded", "false");
 }
 
 function renderSummary() {
@@ -811,6 +982,7 @@ async function buildCharacterFromInviteName(inviteName) {
     spec: "",
     role: "딜러",
     healerDpsSwap: false,
+    order: getNextOrder(),
   };
 
   try {
@@ -849,11 +1021,14 @@ async function importAddonString() {
   const newNames = names.filter((name) => !existing.has(name));
   const imported = [];
 
-  for (const name of newNames) {
-    imported.push(await buildCharacterFromInviteName(name));
+  for (const [index, name] of newNames.entries()) {
+    imported.push({
+      ...(await buildCharacterFromInviteName(name)),
+      order: getNextOrder() + index,
+    });
   }
 
-  roster = [...roster, ...imported];
+  roster = normalizeRosterOrder([...roster, ...imported]);
   saveRoster();
   render();
   importButton.disabled = false;
@@ -943,6 +1118,25 @@ exportButton.addEventListener("click", copyAddonImportString);
 importButton.addEventListener("click", importAddonString);
 roleFilter.addEventListener("change", renderRoster);
 
+sortMenuButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleSortMenu();
+});
+
+sortMenu.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-sort]");
+  if (!button) {
+    return;
+  }
+  applySort(button.dataset.sort);
+});
+
+document.addEventListener("click", (event) => {
+  if (!sortMenu.hidden && !event.target.closest(".sort-menu")) {
+    closeSortMenu();
+  }
+});
+
 addForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const parsed = parseCharacterInput(document.querySelector("#nameInput").value);
@@ -955,6 +1149,7 @@ addForm.addEventListener("submit", async (event) => {
     spec: "",
     role: "딜러",
     healerDpsSwap: false,
+    order: getNextOrder(),
   };
 
   submitButton.disabled = true;
@@ -975,7 +1170,7 @@ addForm.addEventListener("submit", async (event) => {
     setLookupStatus(`${error.message} 명단에는 연동 대기 상태로 추가했습니다.`, "warn");
   }
 
-  roster = [...roster, character];
+  roster = normalizeRosterOrder([...roster, character]);
   addForm.reset();
   saveRoster();
   render();
